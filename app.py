@@ -91,7 +91,7 @@ body {
 # =========================
 # 💍 HEADER
 # =========================
-st.markdown('<div class="title">💍 Propuestas Inteligentes</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">Propuestas Inteligentes</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Análisis con IA de ideas románticas</div>', unsafe_allow_html=True)
 
 # =========================
