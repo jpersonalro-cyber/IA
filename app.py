@@ -2,53 +2,104 @@ import streamlit as st
 import pandas as pd
 from collections import Counter
 import re
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
 # =========================
-# 🎨 CONFIGURACIÓN
+# ⚙️ CONFIG
 # =========================
-st.set_page_config(
-    page_title="💍 Propuestas de Pareja",
-    page_icon="💍",
-    layout="centered"
-)
+st.set_page_config(page_title="💍 Propuestas", layout="wide")
 
 # =========================
-# 🎨 ESTILO PERSONALIZADO
+# 🎨 ESTILO SOFT UI + ANIMACIONES
 # =========================
 st.markdown("""
-    <style>
-    .main {
-        background-color: #f8f9fa;
-    }
-    .title {
-        font-size: 32px;
-        font-weight: bold;
-        color: #ff4b6e;
-        text-align: center;
-    }
-    .card {
-        background-color: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-    }
-    </style>
+<style>
+
+/* Fondo general */
+body {
+    background-color: #e6e6e6;
+}
+
+/* Animación entrada */
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(25px);}
+    to {opacity: 1; transform: translateY(0);}
+}
+
+/* Tarjetas */
+.card {
+    background: #e6e6e6;
+    border-radius: 25px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 10px 10px 20px #c5c5c5,
+                -10px -10px 20px #ffffff;
+    animation: fadeIn 0.8s ease forwards;
+    transition: all 0.3s ease;
+}
+
+/* Hover */
+.card:hover {
+    transform: scale(1.04);
+    box-shadow: 14px 14px 25px #b0b0b0,
+                -14px -14px 25px #ffffff;
+}
+
+/* Botón */
+.stButton>button {
+    background-color: #222;
+    color: white;
+    border-radius: 15px;
+    height: 55px;
+    width: 100%;
+    font-size: 18px;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.stButton>button:hover {
+    background-color: #ff4b6e;
+    transform: scale(1.05);
+}
+
+/* Input */
+.stTextInput>div>div>input {
+    border-radius: 15px;
+    padding: 12px;
+}
+
+/* Título */
+.title {
+    text-align: center;
+    font-size: 42px;
+    font-weight: bold;
+    animation: fadeIn 1s ease;
+}
+
+/* Subtítulo */
+.subtitle {
+    text-align: center;
+    color: gray;
+    margin-bottom: 30px;
+    animation: fadeIn 1.2s ease;
+}
+
+</style>
 """, unsafe_allow_html=True)
 
 # =========================
 # 💍 HEADER
 # =========================
-st.markdown('<p class="title">💍 Analizador de Propuestas</p>', unsafe_allow_html=True)
-st.write("Descubre la propuesta ideal basada en respuestas reales 💡")
+st.markdown('<div class="title">💍 Propuestas Inteligentes</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Análisis con IA de ideas románticas</div>', unsafe_allow_html=True)
 
 # =========================
 # 📎 INPUT
 # =========================
+st.markdown('<div class="card">', unsafe_allow_html=True)
 url = st.text_input("📎 Pega el link CSV de tu formulario")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================
 # 🚀 BOTÓN
@@ -65,20 +116,18 @@ if st.button("✨ Analizar"):
             st.stop()
 
         # LIMPIEZA
-        def limpiar_texto(texto):
-            texto = texto.lower()
-            texto = re.sub(r"[^\w\s]", "", texto)
-            return texto
+        def limpiar(texto):
+            return re.sub(r"[^\w\s]", "", texto.lower())
 
-        respuestas_limpias = [limpiar_texto(r) for r in respuestas]
+        respuestas_limpias = [limpiar(r) for r in respuestas]
 
         # STOPWORDS
-        stopwords_es = [
-            "de","la","que","el","en","y","a","los","del","se","las",
-            "por","un","para","con","no","una","su","al","lo","como"
+        stopwords = [
+            "de","la","que","el","en","y","a","los","del",
+            "se","las","por","un","para","con","no","una"
         ]
 
-        temas_detectados = []
+        temas = []
 
         # =========================
         # 🧠 IA
@@ -86,7 +135,7 @@ if st.button("✨ Analizar"):
         if len(respuestas_limpias) >= 2:
 
             vectorizer = TfidfVectorizer(
-                stop_words=stopwords_es,
+                stop_words=stopwords,
                 ngram_range=(1,2)
             )
 
@@ -102,12 +151,19 @@ if st.button("✨ Analizar"):
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("🧠 Temas detectados")
 
+            cols = st.columns(k)
+
             for i in range(k):
                 palabras = [terminos[ind] for ind in orden[i, :5]]
                 palabras = [p for p in palabras if len(p) > 3]
-                temas_detectados.append(palabras)
 
-                st.write(f"🔹 Grupo {i+1}: {', '.join(palabras)}")
+                with cols[i]:
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.write(f"Grupo {i+1}")
+                    st.write(", ".join(palabras))
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                temas.extend(palabras)
 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -117,11 +173,11 @@ if st.button("✨ Analizar"):
         categorias = {
             "lugar": ["cena", "picnic", "restaurante", "comida"],
             "detalle": ["ramo", "flores"],
-            "ambiente": ["romantico", "romántico", "sorpresa"],
-            "extra": ["mariachi", "anillo", "velas"]
+            "ambiente": ["romantico", "sorpresa"],
+            "extra": ["mariachi", "velas"]
         }
 
-        resultados = {cat: [] for cat in categorias}
+        resultados = {c: [] for c in categorias}
 
         for r in respuestas_limpias:
             for cat, palabras in categorias.items():
@@ -129,36 +185,31 @@ if st.button("✨ Analizar"):
                     if p in r:
                         resultados[cat].append(p)
 
-        final = {}
-        for cat, lista in resultados.items():
-            if lista:
-                final[cat] = Counter(lista).most_common(1)[0][0]
+        final = {
+            cat: Counter(lst).most_common(1)[0][0]
+            for cat, lst in resultados.items() if lst
+        }
 
-        # FRASES IA
-        frases = [p for grupo in temas_detectados for p in grupo]
-        top = [p for p, _ in Counter(frases).most_common(3)]
+        top = [p for p, _ in Counter(temas).most_common(3)]
 
         # =========================
         # 💡 RESULTADO FINAL
         # =========================
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("💡 Propuesta ideal")
 
-        if len(final) == 0:
-            st.warning("No hay suficientes datos.")
-        else:
+        if final:
             partes = []
 
             if "lugar" in final:
                 partes.append(f"una {final['lugar']}")
             if "detalle" in final:
-                partes.append(f"con un {final['detalle']}")
+                partes.append(f"con {final['detalle']}")
             if "ambiente" in final:
                 partes.append(f"en un ambiente {final['ambiente']}")
             if "extra" in final:
                 partes.append(f"incluyendo {final['extra']}")
 
-            texto = " Una propuesta ideal podría ser "
+            texto = " Una propuesta ideal sería "
 
             if len(partes) > 1:
                 texto += ", ".join(partes[:-1]) + " y " + partes[-1]
@@ -166,9 +217,12 @@ if st.button("✨ Analizar"):
                 texto += partes[0]
 
             if top:
-                texto += f", basada en ideas como {', '.join(top)}"
+                texto += f", inspirada en {', '.join(top)}"
 
-            st.success(texto + ".")
+            st.success(texto)
+
+        else:
+            st.warning("No hay suficientes datos para generar propuesta.")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
