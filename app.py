@@ -1,168 +1,178 @@
 import streamlit as st
 import pandas as pd
-from collections import Counter
 import re
+import numpy as np
+from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 # =========================
-# ⚙️ CONFIG
+# CONFIG
 # =========================
-st.set_page_config(page_title="Propuestas", layout="wide")
+st.set_page_config(page_title="Dashboard Propuestas", layout="wide")
 
 # =========================
-# 🎨 ESTILO SOFT UI + ANIMACIONES
+# 🎨 ESTILO DASHBOARD SOFT UI
 # =========================
 st.markdown("""
 <style>
+body { background: #f4f7fb; }
 
-/* Fondo general */
-body {
-    background-color: #e6e6e6;
-}
-
-/* Animación entrada */
-@keyframes fadeIn {
-    from {opacity: 0; transform: translateY(25px);}
-    to {opacity: 1; transform: translateY(0);}
-}
-
-/* Hover */
-.card:hover {
-    transform: scale(1.04);
-    box-shadow: 14px 14px 25px #b0b0b0,
-                -14px -14px 25px #ffffff;
-}
-
-/* Botón */
-.stButton>button {
-    background-color: #222;
-    color: white;
-    border-radius: 15px;
-    height: 55px;
-    width: 100%;
-    font-size: 18px;
-    border: none;
-    transition: all 0.3s ease;
-}
-
-.stButton>button:hover {
-    background-color: #ff4b6e;
-    transform: scale(1.05);
-}
-
-/* Input */
-.stTextInput>div>div>input {
-    border-radius: 15px;
-    padding: 12px;
-}
-
-/* Título */
 .title {
-    text-align: center;
-    font-size: 42px;
-    font-weight: bold;
-    animation: fadeIn 1s ease;
+    text-align:center;
+    font-size:42px;
+    font-weight:700;
+    color:#1a1a1a;
 }
 
-/* Subtítulo */
 .subtitle {
-    text-align: center;
-    color: gray;
-    margin-bottom: 30px;
-    animation: fadeIn 1.2s ease;
+    text-align:center;
+    color:#5f6b7a;
+    margin-bottom:25px;
 }
 
+.card {
+    background:#f4f7fb;
+    padding:20px;
+    border-radius:20px;
+    box-shadow: 8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
+    margin-bottom:20px;
+}
+
+.stButton>button {
+    background: linear-gradient(135deg, #007BFF, #00A8FF);
+    color:white;
+    border-radius:12px;
+    height:50px;
+}
+
+section[data-testid="stSidebar"] {
+    background:#f4f7fb;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-#  HEADER
+# SIDEBAR
 # =========================
-st.markdown('<div class="title">Propuestas Inteligentes</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Análisis con IA de ideas románticas</div>', unsafe_allow_html=True)
+st.sidebar.title("⚙️ Panel")
+
+url = st.sidebar.text_input("📂 CSV URL")
+analizar = st.sidebar.button("🚀 Analizar")
 
 # =========================
-# 📎 INPUT
+# HEADER
 # =========================
-st.markdown('<div class="card">', unsafe_allow_html=True)
-url = st.text_input("📎 Pega el link CSV de tu formulario")
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">📊 Dashboard de Propuestas</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">IA para detectar ideas y generar propuestas</div>', unsafe_allow_html=True)
 
 # =========================
-#  BOTÓN
+# FUNCIONES IA
 # =========================
-if st.button("Analizar"):
+def limpiar(texto):
+    texto = texto.lower()
+    texto = re.sub(r"http\S+", "", texto)
+    texto = re.sub(r"[^\w\s]", "", texto)
+    return texto
+
+def obtener_mejor_k(X, max_k=5):
+    mejor_k = 2
+    mejor_score = -1
+    
+    for k in range(2, min(max_k, X.shape[0]) + 1):
+        modelo = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = modelo.fit_predict(X)
+        
+        if len(set(labels)) > 1:
+            score = silhouette_score(X, labels)
+            if score > mejor_score:
+                mejor_score = score
+                mejor_k = k
+                
+    return mejor_k
+
+# =========================
+# EJECUCIÓN
+# =========================
+if analizar:
 
     try:
         df = pd.read_csv(url)
         columna = df.columns[1]
         respuestas = df[columna].dropna().astype(str)
 
-        if len(respuestas) == 0:
-            st.warning("⚠️ No hay respuestas aún.")
+        if len(respuestas) < 2:
+            st.warning("No hay suficientes respuestas.")
             st.stop()
 
         # LIMPIEZA
-        def limpiar(texto):
-            return re.sub(r"[^\w\s]", "", texto.lower())
-
         respuestas_limpias = [limpiar(r) for r in respuestas]
 
-        # STOPWORDS
+        # STOPWORDS MEJORADAS
         stopwords = [
-            "de","la","que","el","en","y","a","los","del",
-            "se","las","por","un","para","con","no","una"
+            "de","la","que","el","en","y","a","los","del","se",
+            "las","por","un","para","con","no","una","me","mi",
+            "tu","te","es","lo","como","pero","más","ya"
         ]
 
+        # VECTORIZACIÓN
+        vectorizer = TfidfVectorizer(
+            stop_words=stopwords,
+            ngram_range=(1,2),
+            min_df=1
+        )
+
+        X = vectorizer.fit_transform(respuestas_limpias)
+
+        # 🔥 MEJOR K AUTOMÁTICO
+        k = obtener_mejor_k(X)
+
+        modelo = KMeans(n_clusters=k, random_state=42, n_init=10)
+        modelo.fit(X)
+
+        terminos = vectorizer.get_feature_names_out()
+        orden = modelo.cluster_centers_.argsort()[:, ::-1]
+
+        # =========================
+        # MÉTRICAS
+        # =========================
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Respuestas", len(respuestas))
+        col2.metric("Clusters", k)
+        col3.metric("Keywords", len(terminos))
+
+        # =========================
+        # TEMAS
+        # =========================
+        st.markdown("### 🧠 Temas detectados")
+
+        cols = st.columns(k)
         temas = []
 
-        # =========================
-        # 🧠 IA
-        # =========================
-        if len(respuestas_limpias) >= 2:
+        for i in range(k):
+            palabras = [terminos[ind] for ind in orden[i, :6]]
+            palabras = [p for p in palabras if len(p) > 3]
 
-            vectorizer = TfidfVectorizer(
-                stop_words=stopwords,
-                ngram_range=(1,2)
-            )
+            temas.extend(palabras)
 
-            X = vectorizer.fit_transform(respuestas_limpias)
-
-            k = min(3, len(respuestas_limpias))
-            modelo = KMeans(n_clusters=k, random_state=42)
-            modelo.fit(X)
-
-            orden = modelo.cluster_centers_.argsort()[:, ::-1]
-            terminos = vectorizer.get_feature_names_out()
-
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("Temas detectados")
-
-            cols = st.columns(k)
-
-            for i in range(k):
-                palabras = [terminos[ind] for ind in orden[i, :5]]
-                palabras = [p for p in palabras if len(p) > 3]
-
-                with cols[i]:
-                    st.markdown('<div class="card">', unsafe_allow_html=True)
-                    st.write(f"Grupo {i+1}")
-                    st.write(", ".join(palabras))
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-                temas.extend(palabras)
-
-            st.markdown('</div>', unsafe_allow_html=True)
+            with cols[i]:
+                st.markdown(f"""
+                <div class="card">
+                <h4>Grupo {i+1}</h4>
+                <p>{", ".join(palabras)}</p>
+                </div>
+                """, unsafe_allow_html=True)
 
         # =========================
-        # 📊 LÓGICA ORIGINAL
+        # ANÁLISIS SEMÁNTICO
         # =========================
         categorias = {
-            "lugar": ["cena", "picnic", "restaurante", "comida"],
-            "detalle": ["ramo", "flores"],
-            "ambiente": ["romantico", "sorpresa"],
-            "extra": ["mariachi", "velas"]
+            "lugar": ["cena","restaurante","cafe","picnic"],
+            "detalle": ["flores","regalo","carta"],
+            "ambiente": ["romantico","sorpresa","especial"],
+            "extra": ["musica","mariachi","velas"]
         }
 
         resultados = {c: [] for c in categorias}
@@ -181,9 +191,9 @@ if st.button("Analizar"):
         top = [p for p, _ in Counter(temas).most_common(3)]
 
         # =========================
-        # 💡 RESULTADO FINAL
+        # RESULTADO FINAL
         # =========================
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("### 💡 Propuesta generada")
 
         if final:
             partes = []
@@ -197,7 +207,7 @@ if st.button("Analizar"):
             if "extra" in final:
                 partes.append(f"incluyendo {final['extra']}")
 
-            texto = " Una propuesta ideal sería "
+            texto = "Una propuesta ideal sería "
 
             if len(partes) > 1:
                 texto += ", ".join(partes[:-1]) + " y " + partes[-1]
@@ -207,12 +217,14 @@ if st.button("Analizar"):
             if top:
                 texto += f", inspirada en {', '.join(top)}"
 
-            st.success(texto)
+            st.markdown(f"""
+            <div class="card" style="border-left: 5px solid #007BFF;">
+            <p style="font-size:18px;">{texto}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
         else:
-            st.warning("No hay suficientes datos para generar propuesta.")
-
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.warning("No se pudo generar propuesta.")
 
     except Exception as e:
         st.error(f"Error: {e}")
