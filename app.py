@@ -6,14 +6,54 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
-st.set_page_config(page_title="Analizador de Propuestas", layout="centered")
+# =========================
+# 🎨 CONFIGURACIÓN
+# =========================
+st.set_page_config(
+    page_title="💍 Propuestas de Pareja",
+    page_icon="💍",
+    layout="centered"
+)
 
-st.title("💍 Analizador de Propuestas de Pareja")
-st.write("Analiza respuestas de un formulario usando IA básica")
+# =========================
+# 🎨 ESTILO PERSONALIZADO
+# =========================
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f8f9fa;
+    }
+    .title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #ff4b6e;
+        text-align: center;
+    }
+    .card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
+# =========================
+# 💍 HEADER
+# =========================
+st.markdown('<p class="title">💍 Analizador de Propuestas</p>', unsafe_allow_html=True)
+st.write("Descubre la propuesta ideal basada en respuestas reales 💡")
+
+# =========================
+# 📎 INPUT
+# =========================
 url = st.text_input("📎 Pega el link CSV de tu formulario")
 
-if st.button("Analizar"):
+# =========================
+# 🚀 BOTÓN
+# =========================
+if st.button("✨ Analizar"):
 
     try:
         df = pd.read_csv(url)
@@ -21,7 +61,7 @@ if st.button("Analizar"):
         respuestas = df[columna].dropna().astype(str)
 
         if len(respuestas) == 0:
-            st.warning("No hay respuestas aún.")
+            st.warning("⚠️ No hay respuestas aún.")
             st.stop()
 
         # LIMPIEZA
@@ -38,9 +78,11 @@ if st.button("Analizar"):
             "por","un","para","con","no","una","su","al","lo","como"
         ]
 
-        # IA
         temas_detectados = []
 
+        # =========================
+        # 🧠 IA
+        # =========================
         if len(respuestas_limpias) >= 2:
 
             vectorizer = TfidfVectorizer(
@@ -57,6 +99,7 @@ if st.button("Analizar"):
             orden = modelo.cluster_centers_.argsort()[:, ::-1]
             terminos = vectorizer.get_feature_names_out()
 
+            st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("🧠 Temas detectados")
 
             for i in range(k):
@@ -64,9 +107,13 @@ if st.button("Analizar"):
                 palabras = [p for p in palabras if len(p) > 3]
                 temas_detectados.append(palabras)
 
-                st.write(f"Grupo {i+1}: {', '.join(palabras)}")
+                st.write(f"🔹 Grupo {i+1}: {', '.join(palabras)}")
 
-        # LÓGICA ORIGINAL
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # =========================
+        # 📊 LÓGICA ORIGINAL
+        # =========================
         categorias = {
             "lugar": ["cena", "picnic", "restaurante", "comida"],
             "detalle": ["ramo", "flores"],
@@ -91,7 +138,10 @@ if st.button("Analizar"):
         frases = [p for grupo in temas_detectados for p in grupo]
         top = [p for p, _ in Counter(frases).most_common(3)]
 
-        # RESULTADO FINAL
+        # =========================
+        # 💡 RESULTADO FINAL
+        # =========================
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("💡 Propuesta ideal")
 
         if len(final) == 0:
@@ -108,7 +158,7 @@ if st.button("Analizar"):
             if "extra" in final:
                 partes.append(f"incluyendo {final['extra']}")
 
-            texto = "Una propuesta ideal podría ser "
+            texto = " Una propuesta ideal podría ser "
 
             if len(partes) > 1:
                 texto += ", ".join(partes[:-1]) + " y " + partes[-1]
@@ -119,6 +169,8 @@ if st.button("Analizar"):
                 texto += f", basada en ideas como {', '.join(top)}"
 
             st.success(texto + ".")
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
     except Exception as e:
         st.error(f"Error: {e}")
