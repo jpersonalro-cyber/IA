@@ -49,7 +49,7 @@ body {
 /* Botón */
 .stButton>button {
     background-color: #222;
-    color: white;
+    color: blue;
     border-radius: 8px;
     height: 55px;
     width: 100%;
